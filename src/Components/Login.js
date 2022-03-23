@@ -1,9 +1,12 @@
 import React from 'react'
-import styled from'styled-components'
-const Container= styled.div`
+import { connect } from "react-redux"
+import { signInApi } from "../Actions"
+import styled from 'styled-components'
+import { Navigate } from 'react-router-dom';
+const Container = styled.div`
  padding:0px;
 `;
-const Nav= styled.div`
+const Nav = styled.div`
 max-width:1128px;
 margin:auto;
 padding:12px 0 16px;
@@ -145,32 +148,49 @@ const Google = styled.button`
   }
 `;
 
-export default function Login() {
+function Login(props) {
+  console.log(props.user);
+
   return (
-      <Container>
-          <Nav>
-              <a href="/">
-                  <img src="/images/login-logo.svg" alt="" />
-                  </a>
-                  <div>
+    <Container>
+      {
+        props.user && <Navigate to="/home"></Navigate>
+      }
+      <Nav>
+        <a href="/">
+          <img src="/images/login-logo.svg" alt="" />
+        </a>
+        <div>
           <Join>Join now</Join>
           <SignIn>Sign in</SignIn>
         </div>
-          </Nav>
-          <Section>
+      </Nav>
+      <Section>
         <Hero>
           <h1>Welcome to your professional community</h1>
           <img src="/images/login-hero.svg" alt="" />
         </Hero>
         <Form>
-          <Google>
+          <Google onClick={() => props.signIn()}>
             <img src="/images/google.svg" alt="" />
             Sign in with Google
           </Google>
         </Form>
       </Section>
-      </Container>
-  
+    </Container>
+
   )
 }
+const mapStateToProps = (state) => {
+  return {
+    user: state.userState.user,
+  };
+}
+const mapDispatchToProps = (dispatch) => {
+  return {
+    signIn: () => dispatch(signInApi()),
 
+  };
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(Login);
