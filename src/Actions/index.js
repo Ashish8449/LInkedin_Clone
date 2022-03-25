@@ -1,8 +1,18 @@
-import { auth, provider } from "../fireBase";
-import { SET_USER } from "./actionTypes";
+import db, { auth, provider, storage } from "../fireBase";
+import { GET_ARTICLES, SET_LOADING_STATUS, SET_USER } from "./actionTypes";
+
 export const setUser = (payload) => ({
   type: SET_USER,
   user: payload,
+});
+export const setLoadingStatus = (payload) => ({
+  type: SET_LOADING_STATUS,
+  status: payload,
+});
+
+export const getArticles = (payload) => ({
+  type: GET_ARTICLES,
+  articles: payload,
 });
 export function signInApi() {
   return (dispatch) => {
@@ -33,12 +43,82 @@ export function getUserAuth() {
 
 export function singOutApi() {
   return (dispatch) => {
-    auth.signOut()
+    auth
+      .signOut()
       .then(() => {
         dispatch(setUser(null));
       })
       .catch((err) => {
         console.log(err.message);
+      });
+  };
+}
+
+export function postArticlAPi(payload) {
+  return (dispatch) => {
+    dispatch(setLoadingStatus(true));
+    if (payload.image !== "") {
+      console.log(payload);
+      const upload = storage
+        .ref(`images/${payload.image.name}`)
+        .put(payload.image);
+      upload.on(
+        `state_changed`,
+        (snapshot) => {
+          const progress =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          console.log(`progress ${progress}%`);
+          console.log(snapshot.state);
+          if (snapshot.state === "running") {
+            console.log(`progress ${progress}%`);
+          }
+        },
+        (error) => console.log(error),
+        async () => {
+          const downloadUrl = await upload.snapshot.ref.getDownloadURL();
+          console.log(payload);
+          db.collection("article").add({
+            actor: {
+              description: payload.user.email,
+              title: payload.user.displayName,
+              date: payload.timestamp,
+              image: payload.user.photoURL,
+            },
+            video: payload.video,
+            shardeImg: downloadUrl,
+            comment: 0,
+            description: payload.description,
+          });
+          dispatch(setLoadingStatus(false));
+        }
+      );
+    } else if (payload.video) {
+      db.collection("article").add({
+        actor: {
+          description: payload.user.email,
+          title: payload.user.displayName,
+          date: payload.timestamp,
+          image: payload.user.photoURL,
+        },
+        video: payload.video,
+        shardeImg: "",
+        comment: 0,
+        description: payload.description,
+      });
+      dispatch(setLoadingStatus(false));
+    }
+  };
+}
+
+export function getArticlesApi() {
+  let payload;
+  return (dispatch) => {
+    db.collection("article")
+      .orderBy("actor.date", "desc")
+      .onSnapshot((snapshot) => {
+        payload = snapshot.docs.map((doc) => doc.data());
+        console.log(payload);
+        dispatch(getArticles(payload));
       });
   };
 }

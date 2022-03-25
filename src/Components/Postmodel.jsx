@@ -1,5 +1,10 @@
 import React, { useState } from "react";
 import styled from "styled-components";
+import ReactPlayer from "react-player";
+import { connect } from "react-redux";
+import firebase from "firebase/compat/app";
+import { postArticlAPi } from "../Actions";
+
 const Container = styled.div`
   position: fixed;
   top: 0;
@@ -9,6 +14,7 @@ const Container = styled.div`
   right: 0;
   color: black;
   background-color: rbga(0, 0, 0 0.7);
+  animation: fadeIn 0.3s;
 `;
 const Content = styled.div`
   width: 100%;
@@ -42,7 +48,8 @@ const Header = styled.div`
     color: rgba(0, 0, 0, 0.15);
     background: transparent;
     border: none;
-    svg {
+    svg,
+    img {
       pointer-events: none;
     }
   }
@@ -104,32 +111,135 @@ const PostButton = styled.button`
   min-width: 60px;
   border-radius: 20px;
   padding: 10px 16px;
-  background: blue;
-  color: white;
+  background: ${(props) =>
+    props.disabled ? "rgba(0,0 , 0, 0.15)" : "#0a66c2"};
+  color: ${(props) => (props.disabled ? "rgba(0,0 , 0, 0.15)" : "white")};
   &:hover {
-    background: #004182;
+    background: ${(props) =>
+      props.disabled ? "rgba(0,0 , 0, 0.15)" : "#0a66c2"};
   }
 `;
 
-export default function Postmodel() {
+const Editor = styled.div`
+  padding: 12px 24px;
+  textarea {
+    width: 100%;
+    min-height: 100px;
+    resize: none;
+  }
+  input {
+    width: 100%;
+    height: 30px;
+    margin-bottom: 20px;
+  }
+`;
+const Uploadimg = styled.div`
+  text-align: center;
+  img {
+    width: 100%;
+  }
+`;
+export function Postmodel(props) {
   const [editorText, seteditorText] = useState("");
+  const [sharedImage, setSharedImage] = useState("");
+  const [videoLink, setVidoLink] = useState("");
+  // const [assetArea, setAssetArea]= useState("");
+  const handleChange = (e) => {
+    const image = e.target.files[0];
+    if (image === "" || image === undefined) {
+      alert(`not ann image , the file is a ${typeof image}`);
+      return;
+    }
+    setSharedImage(image);
+  };
+
+  // const switchAssesArea= (area)=>{
+  //   setSharedImage("");
+  //   setVidoLink("");
+  //   setAssetArea(area)
+
+  // }
+ 
+  const rest = (e) => {
+    seteditorText("");
+    setSharedImage("");
+    setVidoLink("");
+    props.handleClick(e);
+  };
+
+  const postArticle = (e) => {
+    console.log("click");
+    e.preventDefault();
+    const payload = {
+      image: sharedImage,
+      video: videoLink,
+      user: props.user,
+      description: editorText,
+      timestamp: firebase.firestore.Timestamp.now(),
+    };
+    console.log("👇");
+    props.postArticlAPi(payload);
+    seteditorText("");
+    setSharedImage("");
+    setVidoLink("");
+    props.handleClick(e);
+  };
   return (
     <Container>
       <Content>
         <Header>
           <h2>Create a post</h2>
-          <button>
+          <button onClick={rest}>
             <img src="/images/close-icon.svg" alt="" />
           </button>
         </Header>
         <SharedContent>
           <UserInfo>
-            <img src="/images/user.svg" alt="" />
-            <span> userName</span>
-          </UserInfo>
-          {/* <Editor>
+            {props.user.photoURL ? (
+              <img src={props.user.photoURL} alt="" />
+            ) : (
+              <img src="/images/user.svg" alt="" />
+            )}
 
-</Editor> */}
+            <span> {props.user.displayName}</span>
+          </UserInfo>
+          <Editor>
+            <textarea
+              value={editorText}
+              onChange={(e) => seteditorText(e.target.value)}
+              placeholder="What do you want ot talk about?"
+              autoFocus={true}
+            />
+            <Uploadimg>
+              <input
+                type="file"
+                accept="image/gif, image/jpeg, image/png"
+                name="image"
+                id="file"
+                style={{
+                  display: "none",
+                }}
+                onChange={handleChange}
+              />
+              {!sharedImage && (
+                <p>
+                  <label htmlFor="file">Select an image to share</label>
+                </p>
+              )}
+              {sharedImage && (
+                <img src={URL.createObjectURL(sharedImage)} alt="" />
+              )}
+              <>
+                <input
+                  type="text"
+                  placeholder="Enter video link vlaue"
+                  value={videoLink}
+                  onChange={(e) => setVidoLink(e.target.value)}
+                />
+              </>
+              {videoLink && <ReactPlayer width={`100%`} url={videoLink} />}
+            </Uploadimg>
+          </Editor>
         </SharedContent>
         <SharedCreation>
           <AttactedAssets>
@@ -147,9 +257,29 @@ export default function Postmodel() {
               Anyone
             </AssestButton>{" "}
           </SharedComment>
-          <PostButton>Post</PostButton>
+          <PostButton
+            disabled={!editorText ? true : false}
+            onClick={(e) => {
+              console.log("click on a button");
+              postArticle(e);
+            }}
+          >
+            Post
+          </PostButton>
         </SharedCreation>
       </Content>
     </Container>
   );
 }
+const mapStateToProps = (state) => {
+  return {
+    user: state.userState.user,
+  };
+};
+const mapDispatchToProps = (dispatch) => {
+  return {
+    postArticlAPi: (payload) => dispatch(postArticlAPi(payload)),
+  };
+};
+
+export default connect(mapStateToProps, mapDispatchToProps)(Postmodel);
